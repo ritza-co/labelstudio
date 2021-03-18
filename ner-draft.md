@@ -1,36 +1,80 @@
-# NER with Label Studio
-Named Entity Recognition (NER) is the task of categorising key words in a text as specific entities. An entity can be any word or series of words that consistently refers to the same thing. Each detected entity is classified into a predetermined category, making NER a powerful tool for analysing and categorising natural language. NER can be helpful in getting a high-level overview of a text, understanding the main themes of a body of texts, or grouping texts together based on their similarity. NER is used in many fields in Artificial Intelligence, Natural Language Processing, and Machine Learning for applications ranging from customer support to academia. 
+# Evaluating Named Entity Recognition parsers with spaCy and Label Studio
 
-## spaCy for NER
-SpaCy is a popular Python package for NLP that comes already equipped with NER as well as some other handy features for Text Classification, Tokenization and Part of Speech (POS) tagging among others. To see how it works let’s download The American Life dataset, a transcript of every line of every podcast episode since it began in November 1995! This is a great dataset to play around with since you can download the already cleaned lines from [here](https://data.world/cjewell/this-american-life-transcripts). We will be using the file: `lines_clean.csv`.
+If you're analyzing a large amount of text, it's often useful to extract **named entities** from this - identifying people, places, dates and other entities.
 
-First, create a python file and import the spacy and pandas modules. SpaCy comes with a pre-trained pipeline package that identifies tokens fitting a pre-determined set of named entities. Download spaCy small and save it to the variable `nlp_sm` like so:
+While an off-the-shelf Named Entity Recognition (NER) tagger is sometimes adequate, for real-world settings you'll often need to 
+
+1) evaluate how good the off-the-shelf solution is on your specific dataset
+2) fine tune the NER tagger to your needs.
+
+In this tutorial, we're going to focus on the evalation step. We're going to use a dataset built from transcriptions of the podcast *This American Life* and show how the standard language models that come with the NLP Python library spaCy fall short. We'll do this by comparing spaCy's predictions to a manually annotated gold standard, which we create using Label Studio.
+
+To follow along, you should be comfortable with basic NLP and machine learning terminology (evaluation, parsing, NLP, entities, tokens) and have a local Python environment set up (be comfortable installing packages with pip or poetry and writing basic Python code).
+
+Specifically, we will
+
+* Download a dataset from data.world to use in our examples
+* Parse this dataset with spaCy and evaluate spaCy's "small" language model against its "large" one, focusing on the token `Easter` that is often mistagged
+* Manually add correct NER tags to our dataset using Label Studio
+* Evaluate the larger spaCy model, against this new gold standard
+
+## Downloading the dataset and using spaCy
+
+As an example, let’s download the *This American Life* dataset, which is a transcript of every episode since it began in November 1995! You can download this dataset [here at data.world](https://data.world/cjewell/this-american-life-transcripts). We will be using only the `lines_clean.csv` file from here on, and specificaly the `line_text` column which contains the cleaned text data.
+
+You can see an excerpt of the file below.
+
+<img width="1137" alt="The columns of our dataset" src="https://user-images.githubusercontent.com/2641205/111653437-34b00980-8808-11eb-9514-eeabdd9556a7.png">
+
+### Installing spaCy and loading our data
+
+You'll need [spaCy](https://spacy.io) and [pandas](https://pandas.pydata.org) to continue, so install these now if you haven't already. SpaCy is a popular Python package for NLP that comes already equipped with NER, while pandas is a data frame library that we'll use to read and preprocess our CSV data
+
+If you use Jupyter Notebook, you can follow along by creating a new notebook and recreating the code samples there. If not, create a file called `ner-evaluation.py` and add each section of code there. 
+
+SpaCy comes with several options for pretrained models in different langauges. We'll be using `en_core_web_sm` and `en_core_web_lg` which are small and large models respectively trained on English text from the internet. In general, we would expect the small model to be more efficient but less accurate and the large model to be the opposite.
+
+Download both models by running the following commands in your shell or command prompt:
+
+```bash
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_lg
+```
+
+Now add the following code to your Python file:
+
 ```python 
 import spacy
 import pandas as pd
 
-spacy.cli.download("en_core_web_sm") ## spacy small
 nlp_sm = spacy.load("en_core_web_sm")
-```
+nlp_lg = spacy.load("en_core_web_lg")
 
-Next you can load `lines_clean.csv` and save it to the variable `df_sm`. In this project we will see how spaCy tags (or often mistags) the entity "Easter", therefore we are only interested in the data column ‘line_text’ and only those lines that contain “Easter “, note the intentional whitespace after Easter, this will stop us capturing words like “Easterling”. 
 
-```python
 df = pd.read_csv('lines_clean.csv')
 df = df[df['line_text'].str.contains("Easter ", na=False)]
+print(df.head())
 ```
+
+This loads the spaCy models and the dataset. We use a very crude filter to extract some data containing the word `Easter`, which we will assume has already been flagged by our team as a word that NER taggers often get wrong. 
+
+## Parsing our data and basic evaluation
+
+Our next step is to parse each line of our dataset and see how spaCy would tag some entities. We'll just look at the first 10 texts that contain the keyword `Easter` as an example, but in a real setting you would need a larger sample to get reliable analysis. We'll also parse each text 
+
 Save the dataframe to a variable called `texts` and iterate through each text using a for loop. We can then apply the pre-trained pipeline package to the text and save it to the new variable `doc_sm`. In the same indented block create another for loop and iterate through each token in the document, print the token's text and entity type. 
 
 ```python
-texts = df['line_text']
-for text in texts[:10]:
-    doc_sm = nlp_sm(text)
-    
-    for token in doc_sm:
+texts = df['line_text'][:10]
+docs = nlp_sm.pipe(texts)
+for doc in docs:    
+    for token in doc:
         print(token.text, token.ent_type_)
     print("----------")
 ```
+
 Here's an excerpt from the printed output: 
+
 ```
 And 
 then 
@@ -47,22 +91,18 @@ on
 Irving ORG
 . 
 ```
-As you can see, many instances of 'Easter' are mistagged, `ORG` (Organisation) is definitely not the right entity label here! So let's see if our model does any better when using spaCy large. Again, we want to download the pre-trained pipeline packaging but this time specifying `lg` rather than `sm`. 
 
-```python
-spacy.cli.download("en_core_web_lg") ## spacy large
-nlp_lg= spacy.load("en_core_web_lg")
+As you can see, this instance of 'Easter' is mistagged. The `ORG` (Organisation) tag is definitely not the right entity label here! So let's see if our model does any better when using the large spaCy model with the following code (note that we are using `nlp_lg` instead of `nlp_sm`, otherwise the code is identical.) 
+
 ```
-And go through the same steps as before by iterating through the 
-```
-for text in texts[:10]:
-    doc_sm = nlp_lg(text)
-
-
-    for token in doc_lg:
+docs = nlp_lg.pipe(texts)
+for doc in docs:    
+    for token in doc:
         print(token.text, token.ent_type_)
-    print("----------")
- ```
+    print("----------") 
+```
+
+Here's the same output excerpt as before:
 
 ```
 And 
@@ -79,19 +119,24 @@ house
 on 
 Irving ORG
 . 
+
 ```
 The model makes some different predictions for the entity labels but many of them are still wrong. Instead, this time it labels the same instance of 'Easter' as `GPE` (Geopolitical Entity), which unfortunately is still the incorrect label for this entity. 
 
+## Automatic evaluation of NER for the small and large spaCy models
 
-## Comparing NER results for spaCy small and spaCy large
+It's often difficult to get a true 'gold standard' dataset, so we can bootstrap and evaluation by **assuming** that the large model is correct and seeing how the small model compares to that (even though we know from the examples above that the large model is not 100% accurate).
 
-Let's compare the results of the predicted label entities for the spaCy small model and the spaCy large model. Inside the same for loop as before deactivate the print statements with the `#` character.
+Add the following code to the bottom of your file:
 
 ```python
-for text in texts:
-    print(text)
-    doc_sm = nlp_sm(text)
-    doc_lg = nlp_lg(text)
+docs_sm = nlp_sm.pipe(texts)
+docs_lg = nlp_lg.pipe(texts)
+
+for i in range(len(texts)):
+    doc_sm = docs_sm[i]
+    doc_lg = docs_lg[i]
+
     for token in doc_sm:
         pass
         # print(token.text, token.ent_type_)
