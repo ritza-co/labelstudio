@@ -279,7 +279,7 @@ Click on one of the data rows and you will be prompted to add a labelling config
 </View>
 ```
 
-Hit save, and you'll be taken back to your data. Now click on a row and you can add labels manually to specific words or phrases.
+Hit save, and you'll be taken back to your data. Now click on a row and you can add labels manually to specific words or phrases. Use the helpful pre-defined shortcuts (`1`, `2`, etc) to quickly select the correct label before selecting the relevant portion of text.
 
 ![](https://cln.sh/9WZBul+)
 
@@ -294,97 +294,55 @@ The csv format for the current task should look something like this:
 Let's import this data back into our original project and compare it to spaCy. We'll just use this sample of eight manually done labels as an example, but in a real project you would likely need to do a lot more for meaningful results. Note that what the "correct" tag for Easter *should* be is pretty ambiguous, even for humans - we've used `Date` in most examples and `Person` for "Easter Bunny", but what you choose will depend on your project and needs.
 
 
-## Re-evaluating our spaCy model against the gold standard
+## Comparing the spaCy model against our new gold standard
 
 Rename the file you downloaded from Label Studio to `manual-easter-labels.csv` (it will have a long name with a time stamp by default). Move this file to the same directory as the data and the `ner-evaluation.py` Python script we were working on before.
 
-In the `ner-evaluation.py` file, add the following code.
+Remove all the existing code in the `ner-evaluation.py` file and replace it with the following.
 
 ```python
-result = pd.read_csv('manual-easter-labels.csv')
-labels = result.label
+import pandas as pd
+import json
+
+import spacy
+
+nlp = spacy.load('en_core_web_lg')
+
+manual_labels = pd.read_csv('manual-easter-labels.csv')
+manual_labels.head()
+
+l = manual_labels[['line_text', 'ner']]
+
+for i, text in enumerate(manual_labels['line_text']):
+    gold_labels = set(json.loads(manual_labels['ner'][i])[0]['labels'])
+    
+    doc = nlp(text)
+    spacy_labels = {token.ent_type_ for token in doc if token.ent_type_}
+
+    print(f"""
+{text} ...
+spaCy labels: {spacy_labels}
+gold_labels: {gold_labels}
+""")
 ```
 
-Now we know our own entity labelling in Label Studio is the gold standard so let's compare it with the predicted labels of the spaCy large model. Open the Label Studio results file with `pd.read_csv()` and save it to the variable `result`, then since we're only interested in the column `label` we can then get rid of the rest and just save that column to the variable `labels`. 
-```python
+This doesn't calculate any metrics like we did before. In our example, we've only labelled a few texts and only focused on the keyword `Easter`, so it's not really 'fair' to compare this to spaCy's versions, which are more complete.
 
-
-Next initate an empty list. The `labels` column is formatted like a dictionary in Python so we're going to iterate throught it and append each value to our empty list. 
-
-```python
-label_studio_list = []
-for key, value in labels.items():
-      label_studio_list.append(value)     
-``` 
-
-When we print `label_studio_list` we can see there's still a lot of unnecessary information in it:
+However, it should produce output similar to the following excerpt
 
 ```
-print(label_studio_list)
-['[{"end": 32, "labels": ["Time"], "start": 26, "text": "Easter"}]', '[{"end": 95, "labels": ["Time"], "start": 89, "text": "Easter"}]', '[{"end": 23, "labels": ["Time"], "start": 17, "text": "Easter"}]', '[{"end": 30, "labels": ["Person"], "start": 18, "text": "Easter Bunny"}]', '[{"end": 159, "labels": ["Person"], "start": 147, "text": "Easter bunny"}]', '[{"end": 45, "labels": ["Person"], "start": 33, "text": "Easter Bunny"}]', '[{"end": 236, "labels": ["Time"], "start": 230, "text": "Easter"}]', '[{"end": 49, "labels": ["Person"], "start": 37, "text": "Easter Bunny"}]', '[{"end": 32, "labels": ["Time"], "start": 26, "text": "Easter"}]', '[{"end": 58, "labels": ["Person"], "start": 46, "text": "Easter Bunny"}]', '[{"end": 233, "labels": ["Time"], "start": 227, "text": "Easter"}]', '[{"end": 14, "labels": ["Time"], "start": 8, "text": "Easter"}]', '[{"end": 499, "labels": ["Time"], "start": 493, "text": "Easter"}]', '[{"end": 203, "labels": ["Time"], "start": 197, "text": "Easter"}]', '[{"end": 349, "labels": ["Time"], "start": 343, "text": "Easter"}]', '[{"end": 172, "labels": ["Product"], "start": 162, "text": "Easter egg"}]', '[{"end": 303, "labels": ["Product"], "start": 290, "text": "Easter basket"}]', '[{"end": 189, "labels": ["Product"], "start": 177, "text": "Easter dress"}]', '[{"end": 27, "labels": ["Time"], "start": 14, "text": "Easter Sunday"}]', '[{"end": 628, "labels": ["Person"], "start": 616, "text": "Easter bunny"}, {"end": 92, "labels": ["Person"], "start": 80, "text": "Easter bunny"}]', '[{"end": 341, "labels": ["Time"], "start": 335, "text": "Easter"}]', '[{"end": 180, "labels": ["Time"], "start": 174, "text": "Easter"}]', '[{"end": 34, "labels": ["Time"], "start": 20, "text": "Easter weekend"}]', '[{"end": 13, "labels": ["Time"], "start": 7, "text": "Easter"}]', '[{"end": 140, "labels": ["Product"], "start": 129, "text": "Easter eggs"}]', '[{"end": 33, "labels": ["Time"], "start": 27, "text": "Easter"}]', '[{"end": 145, "labels": ["Product"], "start": 134, "text": "Easter eggs"}]', '[{"end": 818, "labels": ["Person"], "start": 806, "text": "Easter Bunny"}]', '[{"end": 355, "labels": ["Time"], "start": 341, "text": "Easter morning"}]', '[{"end": 54, "labels": ["Time"], "start": 48, "text": "Easter"}]', '[{"end": 172, "labels": ["Product"], "start": 161, "text": "Easter eggs"}]', '[{"end": 202, "labels": ["Person"], "start": 190, "text": "Easter bunny"}]', '[{"end": 265, "labels": ["Time"], "start": 252, "text": "Easter Sunday"}]', '[{"end": 172, "labels": ["Product"], "start": 162, "text": "Easter egg"}]', '[{"end": 316, "labels": ["Time"], "start": 310, "text": "Easter"}]']
+
+I slept there until early morning, when the activity started to increase, and people started coming in. And I went out and followed the crowd where it was going when they were going out to the tombs area in Jerusalem. And I went out. And there were some folding chairs set up in front of this tomb area. And as the sun was coming up on that Easter morning, I was staring at empty tombs. And for a reason that I can not comprehend, as I sat on that chair contemplating this view of the early sun morning coming into the empty tombs, all that I had been wrestling with for the past many, many years in thinking about religion sort of became resolved in my mind. And at that very moment, I believed that Jesus Christ had, indeed, risen from those tombs. ...
+spaCy labels: {'GPE', 'TIME'}
+gold_labels: {'Date'}
 ```
 
-We can use a list comprehension to split the list by ',' and isolate the `"labels":` and the proceeding entity label, which is at index 1 in each list. 
+Showing how spaCy and gold labels differ for each text. If we invest the manual time and effort into really labelling each example by hand, we could compare the two sets of labels and see how often spaCy gets them right. 
 
-```python
-label_studio_list = [i.split(',')[1] for i in label_studio_list]
-```
-```
->>> [' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Person"]', ' "labels": ["Person"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Product"]', ' "labels": ["Product"]', ' "labels": ["Product"]', ' "labels": ["Time"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Product"]', ' "labels": ["Time"]', ' "labels": ["Product"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Time"]', ' "labels": ["Product"]', ' "labels": ["Person"]', ' "labels": ["Time"]', ' "labels": ["Product"]', ' "labels": ["Time"]']
-```
-Then we can clean the lines some more by removing `"labels":` and the square brackets. 
+## Where next?
 
-```python
-label_studio_list = ([s.replace('"labels": ', '') for s in label_studio_list])
-label_studio_list = ([s.replace('["', '') for s in label_studio_list])
-label_studio_list = ([s.replace('"]', '') for s in label_studio_list])
-print(label_studio_list)
-```
-```
->>> [' Time', ' Time', ' Time', ' Person', ' Person', ' Person', ' Time', ' Person', ' Time', ' Person', ' Time', ' Time', ' Time', ' Time', ' Time', ' Product', ' Product', ' Product', ' Time', ' Person', ' Time', ' Time', ' Time', ' Time', ' Product', ' Time', ' Product', ' Person', ' Time', ' Time', ' Product', ' Person', ' Time', ' Product', ' Time']
+You've seen how to do basic NER tagging, both automatically and manually. For a real-world use case, you would need to manually label a large amount of data specific to your project, and then [retrain spaCy's models](https://spacy.io/usage/training) based on this new data set.
 
-```
-Now we have a list of only the entity labels we annotated in Label Studio. Let's compare the labels agaist those of our spaCy large model use the `zip()` function to iterate through the tuples with the corresponding elements from each of the lists, which we can the format. Finally, just join the lists together using `join()` and `print` the result. 
+We've also taken some shortcuts in the above code, such as using `Easter ` as a crude filter, which will skip examples where our keyword is followed by a punctuation mark and only calculating very crude accuracy metrics, but you should be able to adapt these samples to your specific needs.
 
-```python
-results_comparison = "\n".join("{} {}".format(x, y) for x, y in zip(spacy_large_list, label_studio_list))
-print(results_comparison)
-```
-```
->>>   Time
-  Time
-TIME  Time
-  Person
-  Person
-  Person
-TIME  Time
-GPE  Person
-GPE  Time
-DATE  Person
-DATE  Time
-  Time
-  Time
-  Time
-  Time
-NORP  Product
-  Product
-  Product
-  Time
-  Person
-LOC  Time
-DATE  Time
-  Time
-  Time
-  Product
-NORP  Time
-  Product
-  Person
-GPE  Time
-  Time
-  Product
-DATE  Person
-DATE  Time
-GPE  Product
-EVENT  Time
-```
-As we can see the spaCy large model rarely made the same predictions for the entity labels as the labels made in Label Studio, our gold standard. For a model to make accurate predictions it needs training data. The more relevant that training data is to the task, the more accurate the model will be at completing said task. We could now retrain the spaCy parsers with the new data from Label Studio. Using Label Stdio's simple and straightforward UI we can label data quickly and use it to improve existing training data to get more accurate ML models.
+
