@@ -94,7 +94,7 @@ Irving ORG
 
 As you can see, this instance of 'Easter' is mistagged. The `ORG` (Organisation) tag is definitely not the right entity label here! So let's see if our model does any better when using the large spaCy model with the following code (note that we are using `nlp_lg` instead of `nlp_sm`, otherwise the code is identical.) 
 
-```
+```python
 docs = nlp_lg.pipe(texts)
 for doc in docs:    
     for token in doc:
@@ -127,71 +127,117 @@ The model makes some different predictions for the entity labels but many of the
 
 It's often difficult to get a true 'gold standard' dataset, so we can bootstrap and evaluation by **assuming** that the large model is correct and seeing how the small model compares to that (even though we know from the examples above that the large model is not 100% accurate).
 
-Add the following code to the bottom of your file:
+Replace your code with the following.
 
 ```python
-docs_sm = nlp_sm.pipe(texts)
-docs_lg = nlp_lg.pipe(texts)
+import pandas as pd
+import spacy
 
+KEYWORD = "Easter"
+
+df = pd.read_csv("lines_clean.csv")
+df = df[df["line_text"].str.contains(f"{KEYWORD} ", na=False)]
+
+texts = df["line_text"]
+
+print(df.head())
+print(df.shape)
+
+nlp_sm = spacy.load("en_core_web_sm")
+nlp_lg = spacy.load("en_core_web_lg")
+
+docs_sm = list(nlp_sm.pipe(texts))
+docs_lg = list(nlp_lg.pipe(texts))
+
+total_tokens = 0
+agreed_tokens = 0
+total_matches = 0
+agreed_matches = 0
+
+# look at each text
 for i in range(len(texts)):
+    # print(docs_sm[i])
     doc_sm = docs_sm[i]
     doc_lg = docs_lg[i]
 
-    for token in doc_sm:
-        pass
-        # print(token.text, token.ent_type_)
-    for token in doc_lg:
-        pass
-        # print(token.text, token.ent_type_)
-    print("----------")
+    # look at each token in that text
+    for i in range(len(doc_sm)):
+        total_tokens += 1
+        if doc_sm[i].text == f"{KEYWORD}" and doc_lg[i].text == f"{KEYWORD}":
+            total_matches += 1
+            print(doc_sm[i - 5 : i + 5])
+            print(
+                f"spacy_sm: {doc_sm[i].ent_type_} {doc_sm[i].text} spacy_lg: {doc_lg[i].ent_type_} {doc_lg[i].text} "
+            )
+            print("---")
+
+            if doc_sm[i].ent_type == doc_lg[i].ent_type:
+                agreed_matches += 1
+
+        if doc_sm[i].ent_type is not None:
+            if doc_sm[i].ent_type == doc_lg[i].ent_type:
+                agreed_tokens += 1
+
+print(
+    f"""
+Total tokens processed: {total_tokens}
+Small and large model agreed on {agreed_tokens} ({(agreed_tokens/total_tokens):.2f}%)
+Keywords ({KEYWORD}) processed: {total_matches}
+Small and large model agreed on {agreed_matches} ({(agreed_matches/total_matches):.2f}%)
+    
+"""
+)  
 ```
 
-Create another for loop nested within this previous for loop. Here we will iterate through the entities in  both `doc_sm` and `doc_lg`, we do this by calling `ent1` and `ent2`, and zipping the two files together: `zip(doc_sm, doc_lg)`. Since we're only concerned with the 'Easter' entities, next we create an if statement inside the for loop that prints out the entities in `doc_sm` and `doc_lg` if the entity matches the string 'Easter', `ent1.ent_type_ == ent2.ent_type_` will also tell us if the entities types are a match or not (True or False). For the second if statement delcare the variable `spacy_large_list` outside the entire for loop and create an empty list. For the third if statement declare the variable `count` outside the entire for loop again and set it to 0, this if statement will keep track of how many times the entity type for 'Easter" is the same for both models by incrementing the variable `count` by 1 each time it is. 
+This is quite a large chunk of code, but most of it is boilerplate to set up spaCy and some basic variables to evaluate the results. We extract all of the 
+documents which match our keyword, and then loop through each token in each doc, comparing the predictions of the different models and keeping track of how 
+often they agree.
 
-```python
-spacy_large_list = []
-count = 0
-```
-```python
-    for ent1, ent2 in zip(doc_sm, doc_lg):
-        if ent1.text == 'Easter':
-            print(ent1.text, ent2.text, ent1.ent_type_, ent2.ent_type_, ent1.ent_type_ == ent2.ent_type_)
-        if ent2.text == 'Easter':
-            spacy_large_list.append(ent2.ent_type_)
-        if ent1.text == 'Easter' and (ent1.ent_type_ == ent2.ent_type_) == True:
-            count += 1
+For each match, we also print out 10 words of context so we can do some basic sanity checking and qualitative evaluation too.
 
-         
-``` 
-This will print the following text for all instances of 'Easter' in the text. Here we can clearly compare the results of the two models for each instance:
+Here's a sample of the output you should see.
 
 ```
->>>
-And then, we had Easter dinner at John's house on Irving. A big sit-down meal in daytime's unnerving. For me, anyway, I like to eat later. I took some roast lamb, a couple potaters, and carried my plate outside to the lawn, to a table he'd covered in bright pink chiffon. I'd had a few beers and a glass of chablis and thought, before eating, I might want to pee.
-----------
-Easter Easter ORG GPE False
+And then, we had Easter dinner at John's
+spacy_sm: ORG Easter spacy_lg: GPE Easter 
+---
+When? 11:30 PM, Easter eve. Where?
+spacy_sm: PERSON Easter spacy_lg: DATE Easter 
+---
+Super Sport, night before Easter, Route 11.
+spacy_sm: GPE Easter spacy_lg: DATE Easter 
+---
+Our viewers saw art last Easter with a two-
+spacy_sm:  Easter spacy_lg:  Easter 
+---
+. We went back for Easter and then Thanksgiving and
+spacy_sm: PERSON Easter spacy_lg:  Easter 
+
+<...>
+
+Total tokens processed: 3286
+Small and large model agreed on 3182 (0.97%)
+Keywords (Easter) processed: 39
+Small and large model agreed on 6 (0.15%)
 ```
-Then make a print statement outside all for loops with the string "Total number of entity label matches for Easter: " and the `count` variable so we can see how many times both models predicted the same entity label:
 
-```python
-print("Total number of entity label matches for Easter: ", count)
+Despite spaCy being incredibly useful for a range of NLP tasks, its predictions for our entities are not always correct. If the "Easter" issue is important for our project, we're going to need to manually label the entities ourselves.
+
+## Labelling Named Entities in Label Studio
+
+[Label Studio](https://labelstud.io) is an open source data labeling tool. You can install it with `pip` or in the same way you usually install Python libraries. Run the following in your terminal if you haven't already.
+
 ```
+pip install -U label-studio
 ```
->>> Total number of entity label matches for Easter:  6
-```
-Unfortunately 6 matches isn't a great result, and even the spaCy large model isn't accurate in specific cases. 
 
-## NER in Label Studio
+When you start Label Studio for the first time, it launches from a project directory that Label Studio creates. To get started type the following into your terminal:
 
-Despite spaCy being incredibly useful for a range of NLP tasks its predictions for our entities are not always correct, so it looks like we're going to need to manually label the entities ourselves. Luckily, Label Studio can help us do just that. Label Studio is an open source data labeling tool for labeling and exploring multiple types of data. Label Studio can be integrated with machine learning models to supply predictions for labels (pre-labels), or perform continuous active learning.  You can use Label Studio for a variety of labelling and classification tasks for many different data formats but again we will just be focusing on its NER capabilities. 
+`label-studio init ner-tagging`
 
-When you start Label Studio for the first time, it launches from a project directory that Label Studio creates, called ./my_project by default. To get started type the following into your terminal:
+And now you can start up the interface by running 
 
-`label-studio init my_project`
-
-`my_project` can be replaced by any title you like, this will be the name for your project where all the labelling activities in Label Studio will occur. Next we want to start the server, copy the following into your terminal:
-
-`label-studio start ./my_project` 
+`label-studio start ./ner-tagging` 
 
 This will automatically launch a localhost webpage in your browser and direct you to the Label Studio website. From here you can import your data (`lines_clean.csv` in our case) and start labelling. To get started we also need to choose our type of labelling project (Named Entity Recongition) and set our label configurations.
 
