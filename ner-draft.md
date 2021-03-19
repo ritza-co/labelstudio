@@ -233,17 +233,34 @@ pip install -U label-studio
 
 When you start Label Studio for the first time, it launches from a project directory that Label Studio creates. To get started type the following into your terminal:
 
-`label-studio init ner-tagging`
+```
+label-studio init ner-tagging
+```
 
-And now you can start up the interface by running 
+Complete the initialisation steps as prompted.
 
-`label-studio start ./ner-tagging` 
+<img width="908" alt="CleanShot 2021-03-19 at 14 33 53@2x" src="https://user-images.githubusercontent.com/2641205/111788264-2cb3a080-88c0-11eb-858b-08a8a7908b79.png">
 
-This will automatically launch a localhost webpage in your browser and direct you to the Label Studio website. From here you can import your data (`lines_clean.csv` in our case) and start labelling. To get started we also need to choose our type of labelling project (Named Entity Recongition) and set our label configurations.
-
-![Screenshot 2021-03-17 at 14 19 15](https://user-images.githubusercontent.com/66478571/111475477-686a3100-872d-11eb-9815-70221d84da18.png)
 
 ```
+label-studio start ner-tagging
+```
+
+Sign up or log in in when prompted.
+<img width="1122" alt="CleanShot 2021-03-19 at 14 36 23@2x" src="https://user-images.githubusercontent.com/2641205/111788581-8ae08380-88c0-11eb-91ad-fd169e72c864.png">
+
+And you'll be taken to your project dashboard, showing the `ner-tagging` project we just created. Click on that, and choose to import your data from a local file. Upload the `lines_clean.csv` file and specify that it is a `List of tasks`. Then press the import data button.
+
+![CleanShot 2021-03-19 at 14 39 48@2x](https://user-images.githubusercontent.com/2641205/111789048-0b06e900-88c1-11eb-9195-a454ab3ef6a5.png)
+<img width="1349" alt="CleanShot 2021-03-19 at 14 39 01@2x" src="https://user-images.githubusercontent.com/2641205/111788884-e27eef00-88c0-11eb-8fc3-3ff4338611e6.png">
+
+You'll see all the data be imported into the labelling interface. To make it more manageable, let's add a filter for 'Easter ' again, so we can focus on that data. Click on 'Filters', select `line_text` and type `Easter ` (with the trailing space again as a crude way to avoid other words like `Eastern`.)
+
+![CleanShot 2021-03-19 at 14 42 47@2x](https://user-images.githubusercontent.com/2641205/111789496-7fda2300-88c1-11eb-8308-ddd6156290a6.png)
+
+Click on one of the data rows and you will be prompted to add a labelling configuration. Add the following configuration, specifying that we are interested in the data in the `line_text` column and specifying some standard NER labels as possible labels.
+
+```xml
 <View>
   <Labels name="ner" toName="text">
     <Label value="Person"></Label>
@@ -258,42 +275,48 @@ This will automatically launch a localhost webpage in your browser and direct yo
     <Label value="Language"></Label>
     <Label value="Location"></Label>
   </Labels>
-  <Text name="text" value="$text"></Text>
+  <Text name="text" value="$line_text"></Text>
 </View>
 ```
-Change 'text' in `$text` to line_text and hit 'save'.
 
-Next we filter the lines using the Label Studio user interface. Again, we are interested in the line_text column and those lines that contain “Easter”. You can select “Filters” as follows: 
+Hit save, and you'll be taken back to your data. Now click on a row and you can add labels manually to specific words or phrases.
 
-![Screenshot 2021-03-15 at 15 26 54](https://user-images.githubusercontent.com/66478571/111380238-5d1ef300-86a4-11eb-82c5-63913653a774.png)
+![](https://cln.sh/9WZBul+)
 
-Label Studio comes equipped with the entity labels: Person, Organization, Fact, Money, Date, Time, Ordinal, Percent, Product, Language, and Location. To label a word, first select the label you want to assign and then highlight the word/s in the text. Here I labelled “Easter Sunday” with the Time tag: 
+Once you've finished labelling you can export the dataset that you labeled. We'll export our labels as `.csv` to match the dataset that we were working on.
 
-![Screenshot 2021-03-15 at 15 28 15](https://user-images.githubusercontent.com/66478571/111380202-54c6b800-86a4-11eb-979a-7ba177878cea.png)
-
-
-Once you've finished labelling you can export the dataset that you labeled, including the completed annotations, or just export the annotations from Label Studio.
-
-Label Studio stores your annotations in a raw `json` format in the `my_project_name/completions directory`, or whichever cloud or database storage you specify as your target storage, with one file per labeled task named as task_id.json. You can also choose another file type and it will reformat the data for you, in this case I chose to export the file as a `csv.
+![CleanShot 2021-03-19 at 14 52 09@2x](https://user-images.githubusercontent.com/2641205/111790696-c3815c80-88c2-11eb-96b1-afd57a65cf36.png)
 
 The csv format for the current task should look something like this: 
 
-```csv
-act_name	episode_id	line_text	speaker	speaker_class	timestamp	id	label			
-Act One	1	So I entered Jerusalem on Easter with a simple expectation that I was going to photograph another religious ceremony, another religious festival. And then, for various reasons, I got locked out of my hostel room. They had a curfew. And I didn't make it back in time. And I was in quite a fix because I was a stranger in this very strange town. When it happened, I didn't have enough money to stay elsewhere, nor did I even have knowledge of where to go.	Kevin Kelly	host	00:08:06	36	[{"end": 32, "labels": ["Time"], "start": 26, "text": "Easter"}]			
+<img width="1086" alt="CleanShot 2021-03-19 at 14 54 07@2x" src="https://user-images.githubusercontent.com/2641205/111790933-05120780-88c3-11eb-9679-fec02396b014.png">
 
-```
-Now we know our own entity labelling in Label Studio is the gold standard so let's compare it with the predicted labels of the spaCy large model. Open the Label Studio results file with `pd.read_csv()` and save it to the variable `result`, then since we're only interested in the column `label` we can then get rid of the rest and just save that column to the variable `labels`. 
+Let's import this data back into our original project and compare it to spaCy. We'll just use this sample of eight manually done labels as an example, but in a real project you would likely need to do a lot more for meaningful results. Note that what the "correct" tag for Easter *should* be is pretty ambiguous, even for humans - we've used `Date` in most examples and `Person` for "Easter Bunny", but what you choose will depend on your project and needs.
+
+
+## Re-evaluating our spaCy model against the gold standard
+
+Rename the file you downloaded from Label Studio to `manual-easter-labels.csv` (it will have a long name with a time stamp by default). Move this file to the same directory as the data and the `ner-evaluation.py` Python script we were working on before.
+
+In the `ner-evaluation.py` file, add the following code.
+
 ```python
-result = pd.read_csv('result.csv')
+result = pd.read_csv('manual-easter-labels.csv')
 labels = result.label
 ```
+
+Now we know our own entity labelling in Label Studio is the gold standard so let's compare it with the predicted labels of the spaCy large model. Open the Label Studio results file with `pd.read_csv()` and save it to the variable `result`, then since we're only interested in the column `label` we can then get rid of the rest and just save that column to the variable `labels`. 
+```python
+
+
 Next initate an empty list. The `labels` column is formatted like a dictionary in Python so we're going to iterate throught it and append each value to our empty list. 
+
 ```python
 label_studio_list = []
 for key, value in labels.items():
       label_studio_list.append(value)     
 ``` 
+
 When we print `label_studio_list` we can see there's still a lot of unnecessary information in it:
 
 ```
