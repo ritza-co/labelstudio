@@ -289,7 +289,8 @@ Once you've finished labelling you can export the dataset that you labeled. We'l
 
 The csv format for the current task should look something like this: 
 
-<img width="1086" alt="CleanShot 2021-03-19 at 14 54 07@2x" src="https://user-images.githubusercontent.com/2641205/111790933-05120780-88c3-11eb-9679-fec02396b014.png">
+<img width="1194" alt="CleanShot 2021-03-19 at 16 15 09@2x" src="https://user-images.githubusercontent.com/2641205/111802484-54aa0080-88ce-11eb-83dc-d56723dd7ae4.png">
+
 
 Let's import this data back into our original project and compare it to spaCy. We'll just use this sample of eight manually done labels as an example, but in a real project you would likely need to do a lot more for meaningful results. Note that what the "correct" tag for Easter *should* be is pretty ambiguous, even for humans - we've used `Date` in most examples and `Person` for "Easter Bunny", but what you choose will depend on your project and needs.
 
