@@ -1,36 +1,41 @@
 # Evaluating Named Entity Recognition parsers with spaCy and Label Studio
 
-If you're analyzing a large amount of text, it's often useful to extract **named entities** from this - identifying people, places, dates and other entities.
+If you're analyzing a large amount of text, it's often useful to extract **named entities** from this – identifying people, places, dates and other entities.
 
-While an off-the-shelf Named Entity Recognition (NER) tagger is sometimes adequate, for real-world settings you'll often need to 
+While an off-the-shelf Named Entity Recognition (NER) tagger is sometimes adequate, for real-world settings you'll often need to: 
 
-1) evaluate how good the off-the-shelf solution is on your specific dataset
-2) fine tune the NER tagger to your needs.
+1) Evaluate how good the off-the-shelf solution is on your specific dataset.
+2) Fine-tune the NER tagger to your needs.
 
 In this tutorial, we're going to focus on the evalation step. We're going to use a dataset built from transcriptions of the podcast *This American Life* and show how the standard language models that come with the NLP Python library spaCy fall short. We'll do this by comparing spaCy's predictions to a manually annotated gold standard, which we create using Label Studio.
 
 To follow along, you should be comfortable with basic NLP and machine learning terminology (evaluation, parsing, NLP, entities, tokens) and have a local Python environment set up (be comfortable installing packages with pip or poetry and writing basic Python code).
 
-Specifically, we will
+Specifically, we will:
 
-* Download a dataset from data.world to use in our examples
-* Parse this dataset with spaCy and evaluate spaCy's "small" language model against its "large" one, focusing on the token `Easter` that is often mistagged
-* Manually add correct NER tags to our dataset using Label Studio
-* Evaluate the larger spaCy model, against this new gold standard
+* Download a dataset from data.world to use in our examples.
+* Parse this dataset with spaCy and evaluate spaCy's "small" language model against its "large" one, focusing on the token `Easter` that is often mistagged.
+* Manually add correct NER tags to our dataset using Label Studio.
+* Evaluate the larger spaCy model, against this new gold standard.
 
 ## Downloading the dataset and using spaCy
 
-As an example, let’s download the *This American Life* dataset, which is a transcript of every episode since it began in November 1995! You can download this dataset [here at data.world](https://data.world/cjewell/this-american-life-transcripts). We will be using only the `lines_clean.csv` file from here on, and specificaly the `line_text` column which contains the cleaned text data.
+We are going to find a large sample of text to analyze. For the purposes of this tutorial, let’s download the *This American Life* dataset, which is a transcript of every episode since it began in November 1995! 
+
+You can download this dataset [here at data.world](https://data.world/cjewell/this-american-life-transcripts). We will be using only the `lines_clean.csv` file from here on, and specificaly the `line_text` column which contains the cleaned text data. _WHY_
 
 You can see an excerpt of the file below.
 
 <img width="1137" alt="The columns of our dataset" src="https://user-images.githubusercontent.com/2641205/111653437-34b00980-8808-11eb-9514-eeabdd9556a7.png">
 
-### Installing spaCy and loading our data
+### Installing spaCy
 
-You'll need [spaCy](https://spacy.io) and [pandas](https://pandas.pydata.org) to continue, so install these now if you haven't already. SpaCy is a popular Python package for NLP that comes already equipped with NER, while pandas is a data frame library that we'll use to read and preprocess our CSV data
+You'll need [spaCy](https://spacy.io) and [pandas](https://pandas.pydata.org) to continue, so install these now if you haven't already. 
+* SpaCy is a popular Python package for NLP that comes already equipped with NER.
+* Pandas is a data frame library that we'll use to read and preprocess our CSV data.
 
-If you use Jupyter Notebook, you can follow along by creating a new notebook and recreating the code samples there. If not, create a file called `ner-evaluation.py` and add each section of code there. 
+If you use Jupyter Notebook, you can follow along by creating a new notebook and recreating the code samples there. 
+If not, create a file called `ner-evaluation.py` and add each section of code there. 
 
 SpaCy comes with several options for pretrained models in different langauges. We'll be using `en_core_web_sm` and `en_core_web_lg` which are small and large models respectively trained on English text from the internet. In general, we would expect the small model to be more efficient but less accurate and the large model to be the opposite.
 
@@ -40,8 +45,9 @@ Download both models by running the following commands in your shell or command 
 python -m spacy download en_core_web_sm
 python -m spacy download en_core_web_lg
 ```
+### Loading our data
 
-Now add the following code to your Python file:
+Let's loads the spaCy models and the dataset. Add the following code to your Python file:
 
 ```python 
 import spacy
@@ -56,13 +62,17 @@ df = df[df['line_text'].str.contains("Easter ", na=False)]
 print(df.head())
 ```
 
-This loads the spaCy models and the dataset. We use a very crude filter to extract some data containing the word `Easter`, which we will assume has already been flagged by our team as a word that NER taggers often get wrong. 
+We use a very crude filter to extract some data containing the word `Easter`, which we will assume has already been flagged by our team as a word that NER taggers often get wrong. 
 
 ## Parsing our data and basic evaluation
 
-Our next step is to parse each line of our dataset and see how spaCy would tag some entities. We'll just look at the first 10 texts that contain the keyword `Easter` as an example, but in a real setting you would need a larger sample to get reliable analysis. We'll also parse each text 
+Our next step is to parse each line of our dataset and see how spaCy would tag some entities. We will:
++ Look at the first 10 texts that contain the keyword `Easter` as an example (in a real setting, you would need a larger sample to get reliable analysis). 
++ Parse each text.
++ Save the dataframe to a variable called `texts`. 
++ Iterate through each text using a for loop. 
 
-Save the dataframe to a variable called `texts` and iterate through each text using a for loop. We can then apply the pre-trained pipeline package to the text and save it to the new variable `doc_sm`. In the same indented block create another for loop and iterate through each token in the document, print the token's text and entity type. 
+We can then apply the pre-trained pipeline package to the text and save it to the new variable `doc_sm`. In the same indented block, create another for loop and iterate through each token in the document. Then, print the token's text and entity type. 
 
 ```python
 texts = df['line_text'][:10]
