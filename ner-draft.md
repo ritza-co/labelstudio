@@ -1,5 +1,7 @@
 # Evaluating Named Entity Recognition parsers with spaCy and Label Studio
 
+![image](https://user-images.githubusercontent.com/2641205/112475305-f5863900-8d70-11eb-9eb8-9da879f61708.png)
+
 If you're analyzing a large amount of text, it's often useful to extract **named entities** from this – identifying people, places, dates and other entities.
 
 While an off-the-shelf Named Entity Recognition (NER) tagger is sometimes adequate, for real-world settings you'll often need to: 
